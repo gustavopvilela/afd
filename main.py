@@ -16,21 +16,11 @@ if __name__ == '__main__':
     print(novo_afd)
     """
 
-    file1 = "C:\\Users\\gusta\\Desktop\\a-impar.jff"
-    file2 = "C:\\Users\\gusta\\Desktop\\b-impar.jff"
+    file1 = "C:\\Users\\gusta\\Desktop\\d.jff"
 
     a1 = AFD.importar_jflap(file1)
-    a2 = AFD.importar_jflap(file2)
-
-    print(a1)
-    print("=============================================")
+    a2 = AFD.minimizar(a1)
     print(a2)
-    print("=============================================")
-
-    operacoes_aceitas = ["uniao", "intersecao", "diferenca"]
+    AFD.exportar_jflap(a2, "C:\\Users\\gusta\\Desktop\\e.jff")
 
 
-    a3 = AFD.produto(a1, a2, operacoes_aceitas[2])
-    print(a3)
-
-    AFD.exportar_jflap(a3, "C:\\Users\\gusta\\Desktop\\c.jff")

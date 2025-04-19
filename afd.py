@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import *
+from collections import deque
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
@@ -143,17 +144,20 @@ class AFD:
         with open(arquivo, 'w', encoding='utf-8') as f:
             f.write(arquivo_formatado)
 
-    # Precisamos completar o autômato antes de chamar a função de complemento
-    # para garantir que funcione corretamente
+    # Precisamos completar o autômato para que o processo de minimização
+    # dê certo
     def completar (self):
         erro = 'E'
         if erro not in self.estados:
             self.estados.add(erro)
 
-        for q in list(self.estados_finais):
+        for q in list(self.estados):
             for a in self.alfabeto:
                 if (q, a) not in self.transicoes:
                     self.transicoes[(q, a)] = erro
+
+        for a in self.alfabeto:
+            self.transicoes[(erro, a)] = erro
 
         return self
 
@@ -167,7 +171,7 @@ class AFD:
         return self
 
     def produto (self, other, operacao):
-        operacoes_aceitas = ["uniao", "intersecao", "diferenca"]
+        operacoes_aceitas = ["uniao", "intersecao", "diferenca", "xor"]
         if operacao not in operacoes_aceitas:
             return None
 
@@ -222,7 +226,76 @@ class AFD:
                 if is_final_afd1 and is_final_afd2:
                     produto_estados_finais.add(nome_estado_atual)
 
+            if operacao == "xor":
+                if is_final_afd1 and not is_final_afd2:
+                    produto_estados_finais.add(nome_estado_atual)
+
         # Definindo o nome dos estados para o retorno do AFD
         nomes_estados = set(produto_estados.values())
 
         return AFD(nomes_estados, produto_alfabetos, produto_transicoes, produto_estado_inicial, produto_estados_finais)
+
+    def minimizar(self):
+        afd1 = self.completar()
+
+        particoes = [afd1.estados_finais, afd1.estados - afd1.estados_finais]
+        lista_trabalho = [afd1.estados_finais.copy()]
+
+        # Refinamento Hopcroft
+        while lista_trabalho:
+            bloco_atual = lista_trabalho.pop()
+            for simbolo in afd1.alfabeto:
+                antecessores = {
+                    estado
+                    for estado in afd1.estados
+                    if afd1.transicoes.get((estado, simbolo)) in bloco_atual
+                }
+
+                for bloco in particoes[:]:
+                    intersecao = bloco & antecessores
+                    diferenca = bloco - antecessores
+
+                    if intersecao and diferenca:
+                        particoes.remove(bloco)
+                        particoes.extend([intersecao, diferenca])
+
+                        if bloco in lista_trabalho:
+                            lista_trabalho.remove(bloco)
+                            lista_trabalho.extend([intersecao, diferenca])
+                        else:
+                            menor = intersecao if len(intersecao) <= len(diferenca) else diferenca
+                            lista_trabalho.append(menor)
+
+        # Criar nomes legíveis para os novos estados
+        bloco_para_nome = {}
+        for i, bloco in enumerate(particoes):
+            nome = "_".join(sorted(bloco))
+            bloco_para_nome[frozenset(bloco)] = nome
+
+        # Mapear estados antigos para o novo nome do bloco
+        estado_para_bloco = {}
+        for bloco_frozen, nome in bloco_para_nome.items():
+            for estado in bloco_frozen:
+                estado_para_bloco[estado] = nome
+
+        novos_estados = set(bloco_para_nome.values())
+        novo_estado_inicial = estado_para_bloco[afd1.estado_inicial]
+        novos_estados_finais = {
+            estado_para_bloco[e] for e in afd1.estados_finais
+        }
+
+        novas_transicoes = {}
+        for bloco_frozen, nome in bloco_para_nome.items():
+            representante = next(iter(bloco_frozen))
+            for simbolo in afd1.alfabeto:
+                destino = afd1.transicoes[(representante, simbolo)]
+                destino_nome = estado_para_bloco[destino]
+                novas_transicoes[(nome, simbolo)] = destino_nome
+
+        return AFD(
+            novos_estados,
+            afd1.alfabeto,
+            novas_transicoes,
+            novo_estado_inicial,
+            novos_estados_finais
+        )
