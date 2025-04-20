@@ -16,11 +16,20 @@ if __name__ == '__main__':
     print(novo_afd)
     """
 
-    file1 = "C:\\Users\\gusta\\Desktop\\d.jff"
+    file1 = "C:\\Users\\gusta\\Desktop\\7-1b.jff"
+    file2 = "C:\\Users\\gusta\\Desktop\\minimizei.jff"
 
     a1 = AFD.importar_jflap(file1)
-    a2 = AFD.minimizar(a1)
-    print(a2)
-    AFD.exportar_jflap(a2, "C:\\Users\\gusta\\Desktop\\e.jff")
+    a2 = AFD.importar_jflap(file2)
+
+    #print(a1.estados)
+    b = a1.estados_equivalentes()
+    for bloco in b:
+        print(", ".join(sorted(bloco)))
+
+    #a1 = a1.minimizar()
+    #AFD.exportar_jflap(a1, "C:\\Users\\gusta\\Desktop\\minimizei.jff")
+
+    #print(AFD.testar_equivalencia(a1, a2))
 
 

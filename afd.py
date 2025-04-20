@@ -299,3 +299,61 @@ class AFD:
             novo_estado_inicial,
             novos_estados_finais
         )
+
+    def testar_equivalencia (self, other):
+        afd1 = self
+        afd2 = other
+
+        # Para ter a possibilidade se serem equivalentes, os
+        # autômatos devem ter o mesmo alfabeto
+        if afd1.alfabeto != afd2.alfabeto:
+            return False
+
+        afd3 = AFD.produto(afd1, afd2, "xor")
+
+        visitado, fila = set(), deque([afd3.estado_inicial])
+
+        while fila:
+            ultimo = fila.popleft()
+            if ultimo in afd3.estados_finais:
+                return False
+            visitado.add(ultimo)
+            for simbolo in afd3.alfabeto:
+                v = afd3.transicoes.get((ultimo, simbolo))
+                if v is not None and v not in visitado:
+                    fila.append(v)
+
+        return True
+
+    def estados_equivalentes(self):
+        afd1 = self.completar()
+
+        particoes = [afd1.estados_finais, afd1.estados - afd1.estados_finais]
+        lista_trabalho = [afd1.estados_finais.copy()]
+
+        while lista_trabalho:
+            bloco_atual = lista_trabalho.pop()
+            for simbolo in afd1.alfabeto:
+                antecessores = {
+                    estado
+                    for estado in afd1.estados
+                    if afd1.transicoes.get((estado, simbolo)) in bloco_atual
+                }
+
+                for bloco in particoes[:]:
+                    intersecao = bloco & antecessores
+                    diferenca = bloco - antecessores
+
+                    if intersecao and diferenca:
+                        particoes.remove(bloco)
+                        particoes.extend([intersecao, diferenca])
+
+                        if bloco in lista_trabalho:
+                            lista_trabalho.remove(bloco)
+                            lista_trabalho.extend([intersecao, diferenca])
+                        else:
+                            menor = intersecao if len(intersecao) <= len(diferenca) else diferenca
+                            lista_trabalho.append(menor)
+
+        # Retorna apenas os blocos com mais de um estado (equivalentes)
+        return [bloco for bloco in particoes if len(bloco) > 1]
