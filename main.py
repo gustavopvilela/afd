@@ -55,172 +55,181 @@ def solicitar_dois_automatos (automatos: dict) -> tuple[str, str] | None:
     return nome1, nome2
 
 def main():
-    automatos: Dict[str, AFD] = {}
-    opcao: int = -1
+    try:
+        automatos: Dict[str, AFD] = {}
+        opcao: int = -1
 
-    root = Tk()
-    root.wm_attributes("-topmost", 1)
-    root.withdraw()
+        root = Tk()
+        root.wm_attributes("-topmost", 1)
+        root.withdraw()
 
-    while True:
-        print_menu()
-        opcao = int(input("Digite a opção: "))
+        while True:
+            print_menu()
+            opcao = int(input("Digite a opção: "))
 
-        if opcao == 0:
-            root.destroy()
-            break
+            if opcao == 0:
+                root.destroy()
+                break
 
-        match opcao:
-            case 1:
-                arquivo = askopenfilename(title="Selecione um arquivo")
-                if arquivo[-4:] != ".jff":
-                    print("Escolha um arquivo válido (.jff)!")
-                    continue
+            match opcao:
+                case 1:
+                    arquivo = askopenfilename(title="Selecione um arquivo")
+                    if arquivo[-4:] != ".jff":
+                        print("Escolha um arquivo válido (.jff)!")
+                        continue
 
-                afd = AFD.importar_jflap(arquivo)
-                nome = input("Digite o nome do autômato: ")
-                automatos[nome] = afd
-                print(f"Arquivo importado com sucesso. Seu nome é {nome}")
+                    afd = AFD.importar_jflap(arquivo)
+                    nome = input("Digite o nome do autômato: ")
+                    automatos[nome] = afd
+                    print(f"Arquivo importado com sucesso. Seu nome é {nome}")
 
-            case 2:
-                res = solicitar_um_automato(automatos)
-                if res is None:
-                    continue
+                case 2:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
 
-                nome = res
+                    nome = res
 
-                arquivo = asksaveasfilename(
-                    title="Salvar AFD em",
-                    defaultextension=".jff",
-                    filetypes=[
-                        ("Arquivo JFLAP", "*.jff"),
-                        ("Todos os arquivos", "*.*")
-                    ],
-                )
+                    arquivo = asksaveasfilename(
+                        title="Salvar AFD em",
+                        defaultextension=".jff",
+                        filetypes=[
+                            ("Arquivo JFLAP", "*.jff"),
+                            ("Todos os arquivos", "*.*")
+                        ],
+                    )
 
-                AFD.exportar_jflap(automatos[nome], arquivo)
-                print("Autômato exportado com sucesso.")
+                    if arquivo == "":
+                        print("Nenhum local para salvar escolhido. Operação cancelada.")
+                        continue
 
-            case 3:
-                if len(automatos) == 0:
-                    print("Nenhum autômato importado.")
-                    continue
+                    AFD.exportar_jflap(automatos[nome], arquivo)
+                    print("Autômato exportado com sucesso.")
 
-                nome = input("Digite o nome do autômato: ")
-                if automatos.get(nome) is None:
-                    print("Autômato não existe")
-                    continue
+                case 3:
+                    if len(automatos) == 0:
+                        print("Nenhum autômato importado.")
+                        continue
 
-                salvar_novo = input("O autômato a ser minimizado deve ser salvo como novo autômato? (S/N) ")
+                    nome = input("Digite o nome do autômato: ")
+                    if automatos.get(nome) is None:
+                        print("Autômato não existe")
+                        continue
 
-                if salvar_novo == 'S' or salvar_novo == 's':
-                    afd = AFD.minimizar(automatos[nome])
-                    novo_nome = f"{nome}-min"
-                    automatos[novo_nome] = afd
-                    print(f"Autômato minimizado com sucesso e salvo com o nome \"{novo_nome}\".")
+                    salvar_novo = input("O autômato a ser minimizado deve ser salvo como novo autômato? (S/N) ")
 
-                elif salvar_novo == 'N' or salvar_novo == 'n':
-                    automatos[nome] = AFD.minimizar(automatos[nome])
-                    print(f"Autômato foi minimizado e substituiu o original.")
+                    if salvar_novo == 'S' or salvar_novo == 's':
+                        afd = AFD.minimizar(automatos[nome])
+                        novo_nome = f"{nome}-min"
+                        automatos[novo_nome] = afd
+                        print(f"Autômato minimizado com sucesso e salvo com o nome \"{novo_nome}\".")
 
-            case 4 | 5 | 6:
-                res = solicitar_dois_automatos(automatos)
-                if res is None:
-                    continue
+                    elif salvar_novo == 'N' or salvar_novo == 'n':
+                        automatos[nome] = AFD.minimizar(automatos[nome])
+                        print(f"Autômato foi minimizado e substituiu o original.")
 
-                nome1, nome2 = res
+                case 4 | 5 | 6:
+                    res = solicitar_dois_automatos(automatos)
+                    if res is None:
+                        continue
 
-                if opcao == 4: # União de AFDs
-                    nome_uniao = f"{nome1}-uni-{nome2}"
-                    operacao = Operacao.UNIAO
-                    afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
-                    automatos[nome_uniao] = afd
-                    print(f"Autômato salvo com sucesso com o nome \"{nome_uniao}\".")
-                elif opcao == 5: # Intersecao de AFDs
-                    nome_int = f"{nome1}-int-{nome2}"
-                    operacao = Operacao.INTERSECAO
-                    afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
-                    automatos[nome_int] = afd
-                    print(f"Autômato salvo com sucesso com o nome \"{nome_int}\".")
-                elif opcao == 6: # Diferença de AFDs
-                    nome_dif = f"{nome1}-dif-{nome2}"
-                    operacao = Operacao.DIFERENCA
-                    afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
-                    automatos[nome_dif] = afd
-                    print(f"Autômato salvo com sucesso com o nome \"{nome_dif}\".")
+                    nome1, nome2 = res
 
-            case 7:
-                res = solicitar_um_automato(automatos)
-                if res is None:
-                    continue
+                    if opcao == 4:  # União de AFDs
+                        nome_uniao = f"{nome1}-uni-{nome2}"
+                        operacao = Operacao.UNIAO
+                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        automatos[nome_uniao] = afd
+                        print(f"Autômato salvo com sucesso com o nome \"{nome_uniao}\".")
+                    elif opcao == 5:  # Intersecao de AFDs
+                        nome_int = f"{nome1}-int-{nome2}"
+                        operacao = Operacao.INTERSECAO
+                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        automatos[nome_int] = afd
+                        print(f"Autômato salvo com sucesso com o nome \"{nome_int}\".")
+                    elif opcao == 6:  # Diferença de AFDs
+                        nome_dif = f"{nome1}-dif-{nome2}"
+                        operacao = Operacao.DIFERENCA
+                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        automatos[nome_dif] = afd
+                        print(f"Autômato salvo com sucesso com o nome \"{nome_dif}\".")
 
-                nome = res
+                case 7:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
 
-                salvar_novo = input("O autômato a ser complementado deve ser salvo como novo autômato? (S/N) ")
+                    nome = res
 
-                if salvar_novo == 'S' or salvar_novo == 's':
-                    afd = AFD.complemento(automatos[nome])
-                    novo_nome = f"{nome}-comp"
-                    automatos[novo_nome] = afd
-                    print(f"Autômato complementado com sucesso e salvo com o nome \"{novo_nome}\".")
+                    salvar_novo = input("O autômato a ser complementado deve ser salvo como novo autômato? (S/N) ")
 
-                elif salvar_novo == 'N' or salvar_novo == 'n':
-                    automatos[nome] = AFD.complemento(automatos[nome])
-                    print(f"Autômato complementado e substituiu o original.")
+                    if salvar_novo == 'S' or salvar_novo == 's':
+                        afd = AFD.complemento(automatos[nome])
+                        novo_nome = f"{nome}-comp"
+                        automatos[novo_nome] = afd
+                        print(f"Autômato complementado com sucesso e salvo com o nome \"{novo_nome}\".")
 
-            case 8:
-                res = solicitar_dois_automatos(automatos)
-                if res is None:
-                    continue
+                    elif salvar_novo == 'N' or salvar_novo == 'n':
+                        automatos[nome] = AFD.complemento(automatos[nome])
+                        print(f"Autômato complementado e substituiu o original.")
 
-                nome1, nome2 = res
+                case 8:
+                    res = solicitar_dois_automatos(automatos)
+                    if res is None:
+                        continue
 
-                resultado = AFD.testar_equivalencia(automatos[nome1], automatos[nome2])
+                    nome1, nome2 = res
 
-                if resultado:
-                    print("Os autômatos são equivalentes.")
-                else:
-                    print("Os autômatos não são equivalentes.")
+                    resultado = AFD.testar_equivalencia(automatos[nome1], automatos[nome2])
 
-            case 9:
-                res = solicitar_um_automato(automatos)
-                if res is None:
-                    continue
+                    if resultado:
+                        print("Os autômatos são equivalentes.")
+                    else:
+                        print("Os autômatos não são equivalentes.")
 
-                nome = res
+                case 9:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
 
-                estados_equivalentes = AFD.estados_equivalentes(automatos[nome])
+                    nome = res
 
-                if len(estados_equivalentes) > 0:
-                    for bloco in estados_equivalentes:
-                        print("O seguinte conjunto de estados é equivalente:", ", ".join(sorted(bloco)))
-                else:
-                    print("Não há estados equivalentes neste AFD.")
+                    estados_equivalentes = AFD.estados_equivalentes(automatos[nome])
 
-            case 10:
-                if len(automatos) == 0:
-                    print("Nenhum AFD disponível.")
-                    continue
+                    if len(estados_equivalentes) > 0:
+                        for bloco in estados_equivalentes:
+                            print("O seguinte conjunto de estados é equivalente:", ", ".join(sorted(bloco)))
+                    else:
+                        print("Não há estados equivalentes neste AFD.")
 
-                id_afd: int = 1
-                for nome, afd in automatos.items():
-                    print(f"{id_afd}. {nome}")
-                    id_afd += 1
+                case 10:
+                    if len(automatos) == 0:
+                        print("Nenhum AFD disponível.")
+                        continue
 
-            case 11:
-                res = solicitar_um_automato(automatos)
-                if res is None:
-                    continue
+                    id_afd: int = 1
+                    for nome, afd in automatos.items():
+                        print(f"{id_afd}. {nome}")
+                        id_afd += 1
 
-                nome = res
+                case 11:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
 
-                print(automatos[nome])
+                    nome = res
 
-            case _:
-                print("Opção inválida!")
+                    print(automatos[nome])
 
-        input("\n\nAperte Enter para continuar...")
-        os.system('cls' if os.name == 'nt' else 'clear')
+                case _:
+                    print("Opção inválida!")
+
+            input("\n\nAperte Enter para continuar...")
+            os.system('cls' if os.name == 'nt' else 'clear')
+
+    except KeyboardInterrupt:
+        print("\n\nPrograma finalizado abruptamente.")
+
 
 if __name__ == '__main__':
     main()
