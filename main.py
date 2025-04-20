@@ -23,6 +23,7 @@ def print_menu ():
     print("9. Testar estados equivalentes de um AFD")
     print("10. Ver AFDs disponíveis")
     print("11. Visualizar AFD")
+    print("12. Fazer cópia do AFD")
     print("0. Sair")
 
 def solicitar_um_automato (automatos: dict) -> str | None:
@@ -220,6 +221,19 @@ def main():
                     nome = res
 
                     print(automatos[nome])
+
+                case 12:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
+
+                    nome = res
+
+                    afd = AFD.copiar(automatos[nome])
+
+                    novo_nome = f"{nome}-copia"
+                    automatos[novo_nome] = afd
+                    print(f"AFD copiado com sucesso. Está salvo com o nome \"{novo_nome}\".")
 
                 case _:
                     print("Opção inválida!")
