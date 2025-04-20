@@ -1,7 +1,7 @@
 from afd import *
 from enum import Enum
 from tkinter import Tk
-from tkinter.filedialog import  askopenfilename
+from tkinter.filedialog import askopenfilename, asksaveasfilename
 import os
 
 class Operacao(Enum):
@@ -67,6 +67,7 @@ def main():
         opcao = int(input("Digite a opção: "))
 
         if opcao == 0:
+            root.destroy()
             break
 
         match opcao:
@@ -88,7 +89,16 @@ def main():
 
                 nome = res
 
-                AFD.exportar_jflap(automatos[nome], f"exportacoes/{nome.replace(' ', '_')}")
+                arquivo = asksaveasfilename(
+                    title="Salvar AFD em",
+                    defaultextension=".jff",
+                    filetypes=[
+                        ("Arquivo JFLAP", "*.jff"),
+                        ("Todos os arquivos", "*.*")
+                    ],
+                )
+
+                AFD.exportar_jflap(automatos[nome], arquivo)
                 print("Autômato exportado com sucesso.")
 
             case 3:
@@ -105,8 +115,9 @@ def main():
 
                 if salvar_novo == 'S' or salvar_novo == 's':
                     afd = AFD.minimizar(automatos[nome])
-                    automatos[f"{nome} minimizado"] = afd
-                    print(f"Autômato minimizado com sucesso e salvo com o nome \"{nome} minimizado\".")
+                    novo_nome = f"{nome}-min"
+                    automatos[novo_nome] = afd
+                    print(f"Autômato minimizado com sucesso e salvo com o nome \"{novo_nome}\".")
 
                 elif salvar_novo == 'N' or salvar_novo == 'n':
                     automatos[nome] = AFD.minimizar(automatos[nome])
