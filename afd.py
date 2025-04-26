@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import *
 from collections import deque
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ElementTree
 import xml.dom.minidom as minidom
 
 class AFD:
@@ -18,6 +18,10 @@ class AFD:
         self.estado_inicial = estado_inicial
         self.estados_finais = set(estados_finais)
 
+    """
+        Método toString da classe para mostrar na tela os dados do
+        autômato atual: estados, alfabeto, transições, estado inicial e estados finais.
+    """
     def __str__(self):
         return (
             f"AFD(\n"
@@ -30,13 +34,29 @@ class AFD:
             f")"
         )
 
+    """
+        Método para inverter um dicionário. É usado para exportar para um arquivo JFLAP,
+        uma vez que nas transições é usado o ID do estado, e não seu nome. Dessa forma,
+        o par (key: value) de (ID: nome) deve ser alterado para (nome: ID).
+    """
     @staticmethod
     def inverter_dicionario (d):
         return {v: k for k, v in d.items()}
 
+    """
+        Método para criar uma cópia do autômato atual. Nele é usado o deepcopy da biblioteca
+        copy para que se crie uma duplicação que seja independente da original (diferente do
+        método copy).
+    """
     def copiar (self):
         return deepcopy(self)
 
+    """
+        Função para verificar se uma certa cadeia de caracteres é aceita no autômato. Caso o úl-
+        timo estado a ser passado seja um estado final, a cadeia é válida, caso contrário, não é.
+        Além disso, se entrar com uma cadeia que não pertença ao alfabeto, o estado que a transi-
+        ção levará será None, e o método retornará falso imediatamente.
+    """
     def validar (self, cadeia: str):
         estado_atual = self.estado_inicial
 
@@ -47,9 +67,13 @@ class AFD:
 
         return estado_atual in self.estados_finais
 
+    """
+        Método para importar um arquivo JFLAP para o programa. Ele usa a biblioteca de leitura de XML
+        do Python e mapeia cada tag do arquivo formando uma instância da classe AFD no final.
+    """
     @classmethod
     def importar_jflap (cls, arquivo: str):
-        xml = ET.parse(arquivo)
+        xml = ElementTree.parse(arquivo)
         afd = xml.getroot().find('automaton') # Acha a tag do AFD no XML
 
         estados = set()
@@ -90,15 +114,19 @@ class AFD:
 
         return cls(estados, alfabeto, transicoes, inicial, finais)
 
+    """
+        Método para exportar o autômato atual para um arquivo JFLAP (XML). Ele monta o arquivo formatado
+        de acordo com as especificações do software. Por fim ele salva o arquivo no computador.
+    """
     def exportar_jflap (self, arquivo: str):
-        root = ET.Element('structure')
+        root = ElementTree.Element('structure')
 
         # Tipo do autômato: fa = finite automaton
-        type = ET.SubElement(root, 'type')
-        type.text = 'fa'
+        tipo = ElementTree.SubElement(root, 'type')
+        tipo.text = 'fa'
 
         # Subtag dentro de structure: automaton
-        automaton = ET.SubElement(root, 'automaton')
+        automaton = ElementTree.SubElement(root, 'automaton')
 
         # Para cada estado, colocamos como uma subtag
         # Além disso, precisamos colocar id's únicos para cada estado, então
@@ -107,17 +135,17 @@ class AFD:
         id_nome = {}
         id = 0
         for estado in self.estados:
-            state = ET.SubElement(automaton, 'state')
+            state = ElementTree.SubElement(automaton, 'state')
             state.set('name', estado)
             state.set('id', str(id))
             id_nome[id] = estado
             id += 1
 
             if self.estado_inicial == estado:
-                inicial = ET.SubElement(state, 'initial')
+                ElementTree.SubElement(state, 'initial')
 
             if estado in self.estados_finais:
-                final = ET.SubElement(state, 'final')
+                ElementTree.SubElement(state, 'final')
 
         # Agora, vamos colocar as transições
         for (ea, s), ed in self.transicoes.items():
@@ -125,115 +153,187 @@ class AFD:
             # o dicionário
             d_inv = self.inverter_dicionario(id_nome)
 
-            transicao = ET.SubElement(automaton, 'transition')
-            from_estado = ET.SubElement(transicao, 'from')
+            transicao = ElementTree.SubElement(automaton, 'transition')
+            from_estado = ElementTree.SubElement(transicao, 'from')
             from_estado.text = str(d_inv[ea])
 
-            to_estado = ET.SubElement(transicao, 'to')
+            to_estado = ElementTree.SubElement(transicao, 'to')
             to_estado.text = str(d_inv[ed])
 
-            read = ET.SubElement(transicao, 'read')
+            read = ElementTree.SubElement(transicao, 'read')
             read.text = s
 
 
         # Formatando o arquivo com identação para facilitar a visualização
-        para_string = ET.tostring(root, 'utf-8')
+        para_string = ElementTree.tostring(root, 'utf-8')
         dom = minidom.parseString(para_string)
         arquivo_formatado = dom.toprettyxml(indent="    ")
 
         with open(arquivo, 'w', encoding='utf-8') as f:
             f.write(arquivo_formatado)
 
-    # Precisamos completar o autômato para que o processo de minimização
-    # dê certo
+    """
+        Método para completar um autômato. Este método é necessário para a minimização do AFD, uma vez que
+        se nem todas as transições estão no AFD, logo o cálculo de estados equivalentes é falho.
+    """
     def completar (self):
+        afd = AFD.copiar(self)
+
         erro = 'E'
-        if erro not in self.estados:
-            self.estados.add(erro)
+        if erro not in afd.estados:
+            afd.estados.add(erro)
 
-        for q in list(self.estados):
-            for a in self.alfabeto:
-                if (q, a) not in self.transicoes:
-                    self.transicoes[(q, a)] = erro
+        for estado in list(afd.estados):
+            for simbolo in afd.alfabeto:
+                if (estado, simbolo) not in afd.transicoes:
+                    afd.transicoes[(estado, simbolo)] = erro
 
-        for a in self.alfabeto:
-            self.transicoes[(erro, a)] = erro
+        for simbolo in afd.alfabeto:
+            afd.transicoes[(erro, simbolo)] = erro
 
-        return self
+        return afd
 
+    """
+        Método para gerar o complemento do AFD atual. Faz-se a seguinte alteração: se o estado é final,
+        logo, ele não é mais. Se ele não é, logo, agora é.
+    """
     def complemento (self):
-        for e in self.estados:
-            if e not in self.estados_finais:
-                self.estados_finais.add(e)
+        complemento = AFD.copiar(self)
+
+        for e in complemento.estados:
+            if e not in complemento.estados_finais:
+                complemento.estados_finais.add(e)
             else:
-                self.estados_finais.remove(e)
+                complemento.estados_finais.remove(e)
 
-        return self
+        return complemento
 
-    def produto (self, other, operacao):
-        operacoes_aceitas = ["uniao", "intersecao", "diferenca", "xor"]
-        if operacao not in operacoes_aceitas:
-            return None
-
+    """
+        Funções para realizar o produto de dois autômatos seguindo alguma regra. Essa regra pode ser a
+        união, interseção, diferença ou o xor dos dois AFDs. Primeiro, fazemos o produto dos estados,
+        eles são armazenados em um dicionário da forma (e1, e2): nome_e1_e2, para que depois se possa
+        gerar os estados do novo autômato.
+        
+        Depois, gera-se o produto dos alfabetos dos autômatos, consistindo na união dos dois.
+        
+        Assim, geramos as transições. Para isso ocorrer, a transição deve acontecer nos dois
+        AFDs simultaneamente: aqui não criamos o estado de erro como na função de completar,
+        portanto, as transições devem existir em ambos os casos. Dessa forma, pegamos o nome do estado da
+        transição no dicionário de produtos de estados que criamos. Se o estado de destino existir
+        no dicionário (do jeito que a função está montada, acredito que é bem difícil ele não existir),
+        adicionamos ele no dicionário de novas transições.
+        
+        Definimos, então, o novo estado inicial e por fim selecionamos os novos estados finais baseados
+        na operação que é passada por parâmetro e retornamos o novo AFD.
+    """
+    def produto (self, other):
         afd1 = self
         afd2 = other
 
-        if operacao == "diferenca":
-            afd2 = afd2.complemento()
-
         produto_estados = {}
-
-        # Vamos mapear a junção dos estados, pois assim conseguiremos retornar o AFD corretamente
         for estado_afd1 in afd1.estados:
             for estado_afd2 in afd2.estados:
                 nome_estado = f"{estado_afd1}_{estado_afd2}"
                 produto_estados[(estado_afd1, estado_afd2)] = nome_estado
 
-        # Agora, vamos juntar os alfabetos dos dois AFDs
         produto_alfabetos = afd1.alfabeto.union(afd2.alfabeto)
 
-        # Agora, vamos mapear as transições dos estados juntos de acordo com cada símbolo no novo alfabeto
         produto_transicoes = {}
-
         for (estado_afd1, estado_afd2), nome_estado_atual in produto_estados.items():
             for simbolo in produto_alfabetos:
                 destino_afd1 = afd1.transicoes.get((estado_afd1, simbolo))
                 destino_afd2 = afd2.transicoes.get((estado_afd2, simbolo))
 
-                # Se as duas transições não levarem a None, então juntamos elas
+                # Se as duas transições não levarem a None, juntamos elas
                 if destino_afd1 is not None and destino_afd2 is not None:
-                    estado_destino = produto_estados.get((destino_afd1, destino_afd2))
+                    estado_destino = produto_estados.get((estado_afd1, estado_afd2))
                     if estado_destino is not None:
                         produto_transicoes[(nome_estado_atual, simbolo)] = estado_destino
 
-        # Definindo o novo estado inicial
         produto_estado_inicial = produto_estados[(afd1.estado_inicial, afd2.estado_inicial)]
 
-        # Definindo os estados finais
-        produto_estados_finais = set()
+        nomes_estados = set(produto_estados.values())
 
-        for (estado_afd1, estado_afd2), nome_estado_atual in produto_estados.items():
+        # Aqui, retornaremos os dados obtidos até o momento para que as funções específicas
+        # possam tratá-los de maneira adequada.
+        return produto_estados, nomes_estados, produto_alfabetos, produto_transicoes, produto_estado_inicial
+
+    def intersecao (self, other):
+        afd1 = self
+        afd2 = other
+
+        estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
+
+        # Definindo os estados finais para montar o AFD
+        produto_estados_finais = set()
+        for(estado_afd1, estado_afd2), nome_estado_atual in estados.items():
             is_final_afd1 = estado_afd1 in afd1.estados_finais
             is_final_afd2 = estado_afd2 in afd2.estados_finais
 
-            if operacao == "uniao":
-                if is_final_afd1 or is_final_afd2:
-                    produto_estados_finais.add(nome_estado_atual)
+            # Aplicando a operação de interseção
+            if is_final_afd1 and is_final_afd2:
+                produto_estados_finais.add(nome_estado_atual)
 
-            if operacao in ("intersecao", "diferenca"):
-                # Se a operação for "diferença", o autômato já está invertido no começo da função
-                # então podemos usar somente o operador "and" que teremos os mesmos resultados
-                if is_final_afd1 and is_final_afd2:
-                    produto_estados_finais.add(nome_estado_atual)
+        # Retornando o AFD montado
+        return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
-            if operacao == "xor":
-                if is_final_afd1 and not is_final_afd2:
-                    produto_estados_finais.add(nome_estado_atual)
+    def diferenca(self, other):
+        afd1 = self
+        afd2 = other
+        afd2 = afd2.complemento()
 
-        # Definindo o nome dos estados para o retorno do AFD
-        nomes_estados = set(produto_estados.values())
+        estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
 
-        return AFD(nomes_estados, produto_alfabetos, produto_transicoes, produto_estado_inicial, produto_estados_finais)
+        # Definindo os estados finais para montar o AFD
+        produto_estados_finais = set()
+        for (estado_afd1, estado_afd2), nome_estado_atual in estados.items():
+            is_final_afd1 = estado_afd1 in afd1.estados_finais
+            is_final_afd2 = estado_afd2 in afd2.estados_finais
+
+            # Aplicando a operação de interseção
+            if is_final_afd1 and is_final_afd2:
+                produto_estados_finais.add(nome_estado_atual)
+
+        # Retornando o AFD montado
+        return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
+
+    def xor(self, other):
+        afd1 = self
+        afd2 = other
+
+        estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
+
+        # Definindo os estados finais para montar o AFD
+        produto_estados_finais = set()
+        for (estado_afd1, estado_afd2), nome_estado_atual in estados.items():
+            is_final_afd1 = estado_afd1 in afd1.estados_finais
+            is_final_afd2 = estado_afd2 in afd2.estados_finais
+
+            # Aplicando a operação de interseção
+            if is_final_afd1 ^ is_final_afd2:
+                produto_estados_finais.add(nome_estado_atual)
+
+        # Retornando o AFD montado
+        return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
+
+    def uniao(self, other):
+        afd1 = self
+        afd2 = other
+
+        estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
+
+        # Definindo os estados finais para montar o AFD
+        produto_estados_finais = set()
+        for (estado_afd1, estado_afd2), nome_estado_atual in estados.items():
+            is_final_afd1 = estado_afd1 in afd1.estados_finais
+            is_final_afd2 = estado_afd2 in afd2.estados_finais
+
+            # Aplicando a operação de interseção
+            if is_final_afd1 or is_final_afd2:
+                produto_estados_finais.add(nome_estado_atual)
+
+        # Retornando o AFD montado
+        return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
     def minimizar(self):
         afd1 = self.completar()
@@ -266,13 +366,13 @@ class AFD:
                             menor = intersecao if len(intersecao) <= len(diferenca) else diferenca
                             lista_trabalho.append(menor)
 
-        # Criar nomes legíveis para os novos estados
+        # Criando os nomes para os novos estados
         bloco_para_nome = {}
         for i, bloco in enumerate(particoes):
             nome = "_".join(sorted(bloco))
             bloco_para_nome[frozenset(bloco)] = nome
 
-        # Mapear estados antigos para o novo nome do bloco
+        # Mapeando estados antigos para o novo nome do bloco
         estado_para_bloco = {}
         for bloco_frozen, nome in bloco_para_nome.items():
             for estado in bloco_frozen:
@@ -300,29 +400,61 @@ class AFD:
             novos_estados_finais
         )
 
+    """
+        
+    """
     def testar_equivalencia (self, other):
-        afd1 = self
-        afd2 = other
+        # Copiando os AFDs para evitar interferências nos originais
+        afd1 = self.copiar()
+        afd2 = other.copiar()
 
-        # Para ter a possibilidade se serem equivalentes, os
+        # Para ter a possibilidade de serem equivalentes, os
         # autômatos devem ter o mesmo alfabeto
         if afd1.alfabeto != afd2.alfabeto:
             return False
 
-        afd3 = AFD.produto(afd1, afd2, "xor")
+        # Uma das condições de dois AFDs serem equivalentes é que
+        # se o estado inicial de um deles for final, o do outro deve
+        # se comportar da mesma maneira
+        if (afd1.estado_inicial in afd1.estados_finais and afd2.estado_inicial not in afd2.estados_finais) or (afd2.estado_inicial in afd2.estados_finais and afd1.estado_inicial not in afd1.estados_finais):
+            return False
 
-        visitado, fila = set(), deque([afd3.estado_inicial])
+        # Para qualquer par gerado a partir dos estados iniciais de um autômato
+        # na forma {qi, qj}, a transição para a entrada a ∈ Σ é definido por
+        # {qa, qb} no qual δ{qi, a} = qa e δ{qj, a} = qb. Dessa forma, os dois
+        # autômatos NÃO são equivalentes se para um par {qa, qb}, um dos elementos
+        # é um estado intermediário (não final) e o outro é um estado final.
+        # Fonte: https://www.youtube.com/watch?v=nX4JrcHgpZY
+        estados_verificados = {}
 
-        while fila:
-            ultimo = fila.popleft()
-            if ultimo in afd3.estados_finais:
-                return False
-            visitado.add(ultimo)
-            for simbolo in afd3.alfabeto:
-                v = afd3.transicoes.get((ultimo, simbolo))
-                if v is not None and v not in visitado:
-                    fila.append(v)
+        e1 = afd1.estado_inicial
+        e2 = afd2.estado_inicial
 
+        # True = dupla já verificada; False = dupla ainda não verificada
+        estados_verificados[(e1, e2)] = False
+
+        while False in estados_verificados.values():
+            # Escolhendo a próxima dupla de estados dentro do dicionário
+            for (k1, k2), valor in estados_verificados.items():
+                if not valor:
+                    e1 = k1
+                    e2 = k2
+
+            # Olhando as transições da dupla de estados para cada
+            # símbolo no alfabeto
+            for simbolo in afd1.alfabeto: # Como já foi verificado os dois alfabetos, tanto faz a utilização de qualquer um
+                t1 = afd1.transicoes.get((e1, simbolo))
+                t2 = afd2.transicoes.get((e2, simbolo))
+
+                if (t1 in afd1.estados_finais and t2 not in afd2.estados_finais) or (t1 not in afd1.estados_finais and t2 in afd2.estados_finais):
+                    return False
+
+                if (t1, t2) not in estados_verificados.keys():
+                    estados_verificados[(t1, t2)] = False
+
+                estados_verificados[(e1, e2)] = True
+
+        # Caso não for achado nenhum par de estados que satisfaça as condições de não equivalência, retornamos True
         return True
 
     def estados_equivalentes(self):

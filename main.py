@@ -1,14 +1,7 @@
 from afd import *
-from enum import Enum
 from tkinter import Tk
 from tkinter.filedialog import askopenfilename, asksaveasfilename
 import os
-
-class Operacao(Enum):
-    UNIAO = "uniao"
-    INTERSECAO = "intersecao"
-    DIFERENCA = "diferenca"
-    XOR = "xor"
 
 def print_menu ():
     print("=== OPÇÕES ===")
@@ -80,7 +73,7 @@ def main():
                         continue
 
                     afd = AFD.importar_jflap(arquivo)
-                    nome = input("Digite o nome do autômato: ")
+                    nome = input(f"Digite o nome do autômato ({arquivo}): ")
                     automatos[nome] = afd
                     print(f"Arquivo importado com sucesso. Seu nome é {nome}")
 
@@ -117,6 +110,16 @@ def main():
                         print("Autômato não existe")
                         continue
 
+                    """
+                        Caso o autômato não possua nenhum estado equivalente, significa que ele já está minimizado.
+                        Se houvesse um ou mais estados equivalentes, eles poderiam ser condensados em um só.
+                    """
+                    estados_equivalentes = AFD.estados_equivalentes(automatos[nome])
+
+                    if len(estados_equivalentes) == 0:
+                        print("O autômato já está em sua forma mínima.")
+                        continue
+
                     salvar_novo = input("O autômato a ser minimizado deve ser salvo como novo autômato? (S/N) ")
 
                     if salvar_novo == 'S' or salvar_novo == 's':
@@ -138,20 +141,17 @@ def main():
 
                     if opcao == 4:  # União de AFDs
                         nome_uniao = f"{nome1}-uni-{nome2}"
-                        operacao = Operacao.UNIAO
-                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        afd = AFD.uniao(automatos[nome1], automatos[nome2])
                         automatos[nome_uniao] = afd
                         print(f"Autômato salvo com sucesso com o nome \"{nome_uniao}\".")
                     elif opcao == 5:  # Intersecao de AFDs
                         nome_int = f"{nome1}-int-{nome2}"
-                        operacao = Operacao.INTERSECAO
-                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        afd = AFD.intersecao(automatos[nome1], automatos[nome2])
                         automatos[nome_int] = afd
                         print(f"Autômato salvo com sucesso com o nome \"{nome_int}\".")
                     elif opcao == 6:  # Diferença de AFDs
                         nome_dif = f"{nome1}-dif-{nome2}"
-                        operacao = Operacao.DIFERENCA
-                        afd = AFD.produto(automatos[nome1], automatos[nome2], operacao.value)
+                        afd = AFD.diferenca(automatos[nome1], automatos[nome2])
                         automatos[nome_dif] = afd
                         print(f"Autômato salvo com sucesso com o nome \"{nome_dif}\".")
 
