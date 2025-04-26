@@ -1,6 +1,5 @@
 from copy import deepcopy
 from typing import *
-from collections import deque
 import xml.etree.ElementTree as ElementTree
 import xml.dom.minidom as minidom
 
@@ -25,12 +24,12 @@ class AFD:
     def __str__(self):
         return (
             f"AFD(\n"
-            f"    estados: {self.estados}\n"
-            f"    alfabeto: {self.alfabeto}\n"
+            f"    estados: {sorted(self.estados)}\n"
+            f"    alfabeto: {sorted(self.alfabeto)}\n"
             f"    transicoes:\n     "+
             "\n     ".join([f"{k} -> {v}" for k, v in self.transicoes.items()]) + "\n"
             f"    estado_inicial: {self.estado_inicial}\n"
-            f"    estados_finais: {self.estados_finais}\n"
+            f"    estados_finais: {sorted(self.estados_finais)}\n"
             f")"
         )
 
@@ -335,71 +334,6 @@ class AFD:
         # Retornando o AFD montado
         return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
-    def minimizar(self):
-        afd1 = self.completar()
-
-        particoes = [afd1.estados_finais, afd1.estados - afd1.estados_finais]
-        lista_trabalho = [afd1.estados_finais.copy()]
-
-        # Refinamento Hopcroft
-        while lista_trabalho:
-            bloco_atual = lista_trabalho.pop()
-            for simbolo in afd1.alfabeto:
-                antecessores = {
-                    estado
-                    for estado in afd1.estados
-                    if afd1.transicoes.get((estado, simbolo)) in bloco_atual
-                }
-
-                for bloco in particoes[:]:
-                    intersecao = bloco & antecessores
-                    diferenca = bloco - antecessores
-
-                    if intersecao and diferenca:
-                        particoes.remove(bloco)
-                        particoes.extend([intersecao, diferenca])
-
-                        if bloco in lista_trabalho:
-                            lista_trabalho.remove(bloco)
-                            lista_trabalho.extend([intersecao, diferenca])
-                        else:
-                            menor = intersecao if len(intersecao) <= len(diferenca) else diferenca
-                            lista_trabalho.append(menor)
-
-        # Criando os nomes para os novos estados
-        bloco_para_nome = {}
-        for i, bloco in enumerate(particoes):
-            nome = "_".join(sorted(bloco))
-            bloco_para_nome[frozenset(bloco)] = nome
-
-        # Mapeando estados antigos para o novo nome do bloco
-        estado_para_bloco = {}
-        for bloco_frozen, nome in bloco_para_nome.items():
-            for estado in bloco_frozen:
-                estado_para_bloco[estado] = nome
-
-        novos_estados = set(bloco_para_nome.values())
-        novo_estado_inicial = estado_para_bloco[afd1.estado_inicial]
-        novos_estados_finais = {
-            estado_para_bloco[e] for e in afd1.estados_finais
-        }
-
-        novas_transicoes = {}
-        for bloco_frozen, nome in bloco_para_nome.items():
-            representante = next(iter(bloco_frozen))
-            for simbolo in afd1.alfabeto:
-                destino = afd1.transicoes[(representante, simbolo)]
-                destino_nome = estado_para_bloco[destino]
-                novas_transicoes[(nome, simbolo)] = destino_nome
-
-        return AFD(
-            novos_estados,
-            afd1.alfabeto,
-            novas_transicoes,
-            novo_estado_inicial,
-            novos_estados_finais
-        )
-
     """
         
     """
@@ -458,34 +392,143 @@ class AFD:
         return True
 
     def estados_equivalentes(self):
-        afd1 = self.completar()
+        estados_alcancaveis = self.obter_estados_alcancaveis()
+        nao_equivalentes = self.encontrar_estados_nao_equivalentes(estados_alcancaveis)
+        grupos_equivalentes = self.agrupar_estados_equivalentes(estados_alcancaveis, nao_equivalentes)
 
-        particoes = [afd1.estados_finais, afd1.estados - afd1.estados_finais]
-        lista_trabalho = [afd1.estados_finais.copy()]
+        # O resultado dos grupos é uma lista de sets, então filtramos essa lista para que ela retorne
+        # somente os sets que possuam mais de um elemento, ou seja, os grupos que possuam estados
+        # equivalentes.
+        return [s for s in grupos_equivalentes if len(s) > 1]
 
-        while lista_trabalho:
-            bloco_atual = lista_trabalho.pop()
-            for simbolo in afd1.alfabeto:
-                antecessores = {
-                    estado
-                    for estado in afd1.estados
-                    if afd1.transicoes.get((estado, simbolo)) in bloco_atual
-                }
+    def obter_estados_alcancaveis (self):
+        # Se um estado não é alcançável a partir do estado inicial,
+        # ele não interfere no funcionamento do AFD, logo pode ser retirado
+        alcancaveis = {self.estado_inicial}
+        pilha = [self.estado_inicial]
 
-                for bloco in particoes[:]:
-                    intersecao = bloco & antecessores
-                    diferenca = bloco - antecessores
+        while pilha:
+            estado = pilha.pop()
+            for simbolo in self.alfabeto:
+                if (estado, simbolo) in self.transicoes:
+                    proximo_estado = self.transicoes[(estado, simbolo)]
+                    if proximo_estado not in alcancaveis:
+                        alcancaveis.add(proximo_estado)
+                        pilha.append(proximo_estado)
 
-                    if intersecao and diferenca:
-                        particoes.remove(bloco)
-                        particoes.extend([intersecao, diferenca])
+        return alcancaveis
 
-                        if bloco in lista_trabalho:
-                            lista_trabalho.remove(bloco)
-                            lista_trabalho.extend([intersecao, diferenca])
-                        else:
-                            menor = intersecao if len(intersecao) <= len(diferenca) else diferenca
-                            lista_trabalho.append(menor)
+    def encontrar_estados_nao_equivalentes (self, alcancaveis):
+        # Encontramos os estados distinguíveis, ou seja, os equivalentes,
+        # usando o algoritmo de Myhill-Nerode
+        nao_equivalentes = set()
 
-        # Retorna apenas os blocos com mais de um estado (equivalentes)
-        return [bloco for bloco in particoes if len(bloco) > 1]
+        # Primeiro percorremos o conjunto de estados alcançáveis e adicionamos
+        # aqueles que não são equivalentes logo de cara, ou seja: os finais e os
+        # não finais
+        for q1 in alcancaveis:
+            for q2 in alcancaveis:
+                if q1 < q2: # Previne a duplicação (q1, q2) e (q2, q1)
+                    if (q1 in self.estados_finais) != (q2 in self.estados_finais):
+                        nao_equivalentes.add((q1, q2))
+
+        # Agora, encontramos mais pares de estados que não são equivalentes até que
+        # estes se esgotem
+        mudou = True
+        while mudou:
+            mudou = False
+            for q1 in alcancaveis:
+                for q2 in alcancaveis:
+                    if q1 < q2 and (q1, q2) not in nao_equivalentes:
+                        # Verificamos se são não equivalentes através de algum símbolo
+                        for simbolo in self.alfabeto:
+                            # Obtendo os próximos estados após a transição
+                            prox1 = self.transicoes.get((q1, simbolo))
+                            prox2 = self.transicoes.get((q2, simbolo))
+
+                            # Se um tem transição e o outro não, são não equivalentes
+                            if (prox1 is None) != (prox2 is None):
+                                nao_equivalentes.add((q1, q2))
+                                mudou = True
+                                break
+
+                            # Se os dois têm transição, verificamos se os próximos estados já são não equivalentes
+                            if prox1 is not None and prox2 is not None:
+                                if prox1 == prox2:
+                                    continue # Mesmo estado
+
+                                if (min(prox1, prox2), max(prox1, prox2)) in nao_equivalentes:
+                                    nao_equivalentes.add((q1, q2))
+                                    mudou = True
+                                    break
+
+        return nao_equivalentes
+
+    def agrupar_estados_equivalentes (self, alcancaveis, nao_equivalentes):
+        # Primeiro, inicializamos cada estado no seu próprio grupo
+        grupos = {}
+        for estado in alcancaveis:
+            grupos[estado] = {estado}
+
+        # Agora, unimos os estados equivalentes
+        for q1 in alcancaveis:
+            for q2 in alcancaveis:
+                if q1 != q2 and (min(q1, q2), max(q1, q2)) not in nao_equivalentes:
+                    # Os estados q1 e q2 são equivalentes
+                    grupo_q1 = None
+                    grupo_q2 = None
+
+                    # Encontrando os grupos dos estados
+                    for representante, grupo in grupos.items():
+                        if q1 in grupo:
+                            grupo_q1 = representante
+                        if q2 in grupo:
+                            grupo_q2 = representante
+
+                    # Se estão em grupos diferentes, são unidos
+                    if grupo_q1 != grupo_q2:
+                        grupos[grupo_q1].update(grupos[grupo_q2])
+                        del grupos[grupo_q2]
+
+                        for estado in grupos[grupo_q1]:
+                            if estado != grupo_q1:
+                                if estado in grupos:
+                                    del grupos[estado]
+
+        # Retornando a lista de conjuntos de estados equivalentes
+        return list(grupos.values())
+
+    def construir_afd_minimizado (self, grupos_equivalentes):
+        # Com temos vários estados num grupo, escolhemos um para representar todos ao montar as transições e
+        # os estados finais. Esse vai ser o representante e é o primeiro na lista ordenada dos estados no grupo de equivalentes.
+        estado_para_representante = {}
+        for grupo in grupos_equivalentes:
+            representante = sorted(grupo)[0]
+            for estado in grupo:
+                estado_para_representante[estado] = representante
+
+        # Criando os novos estados
+        novos_estados = set(estado_para_representante.values())
+
+        # Criando as novas transições
+        novas_transicoes = {}
+        for estado in novos_estados:
+            for simbolo in self.alfabeto:
+                if (estado, simbolo) in self.transicoes:
+                    alvo = self.transicoes[(estado, simbolo)]
+                    # Mapeando para o representante do grupo
+                    novas_transicoes[(estado, simbolo)] = estado_para_representante[alvo]
+
+        # Por fim, colocando o novo estado inicial e os novos estados finais
+        novo_estado_inicial = estado_para_representante[self.estado_inicial]
+        novos_estados_finais = set()
+        for estado_final in self.estados_finais:
+            novos_estados_finais.add(estado_para_representante[estado_final])
+
+        return AFD(novos_estados, self.alfabeto, novas_transicoes, novo_estado_inicial, novos_estados_finais)
+
+    def minimizar (self):
+        estados_alcancaveis = self.obter_estados_alcancaveis()
+        nao_equivalentes = self.encontrar_estados_nao_equivalentes(estados_alcancaveis)
+        grupos_equivalentes = self.agrupar_estados_equivalentes(estados_alcancaveis, nao_equivalentes)
+        return self.construir_afd_minimizado(grupos_equivalentes)

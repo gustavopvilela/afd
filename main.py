@@ -198,8 +198,8 @@ def main():
                     estados_equivalentes = AFD.estados_equivalentes(automatos[nome])
 
                     if len(estados_equivalentes) > 0:
-                        for bloco in estados_equivalentes:
-                            print("O seguinte conjunto de estados é equivalente:", ", ".join(sorted(bloco)))
+                        for grupo in estados_equivalentes:
+                            print("O seguinte conjunto de estados é equivalente:", ", ".join(sorted(grupo)))
                     else:
                         print("Não há estados equivalentes neste AFD.")
 
