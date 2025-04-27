@@ -353,7 +353,7 @@ class AFD:
         if (afd1.estado_inicial in afd1.estados_finais and afd2.estado_inicial not in afd2.estados_finais) or (afd2.estado_inicial in afd2.estados_finais and afd1.estado_inicial not in afd1.estados_finais):
             return False
 
-        # Para qualquer par gerado a partir dos estados iniciais de um autômato
+        # Para qualquer par gerado a partir dos estados iniciais de dois autômatos
         # na forma {qi, qj}, a transição para a entrada a ∈ Σ é definido por
         # {qa, qb} no qual δ{qi, a} = qa e δ{qj, a} = qb. Dessa forma, os dois
         # autômatos NÃO são equivalentes se para um par {qa, qb}, um dos elementos
@@ -420,7 +420,7 @@ class AFD:
 
     def encontrar_estados_nao_equivalentes (self, alcancaveis):
         # Encontramos os estados distinguíveis, ou seja, os equivalentes,
-        # usando o algoritmo de Myhill-Nerode
+        # usando o algoritmo de Myhill-Nerode. Fonte: https://www.youtube.com/watch?v=UiXkJUTkp44
         nao_equivalentes = set()
 
         # Primeiro percorremos o conjunto de estados alcançáveis e adicionamos
