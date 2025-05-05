@@ -84,8 +84,11 @@ AFD(
 ```
 
 ### 12. Cópia de AFD
-Caso seja necessário uma nova instância de certo autômato, basta copiá-lo que haverá uma cópia independente do original, nomeada automaticamente como `[nome-original]-copia`.
-  
+Caso seja necessária uma nova instância de certo autômato, basta copiá-lo que haverá uma cópia independente do original, nomeada automaticamente como `[nome-original]-copia`.
+
+### 13. Validar cadeia de caracteres
+Para um determinado autômato escolhido, o programa verificará se a cadeia termina em um estado de aceitação (estado final), se sim, a cadeia é aceita, caso contrário, não.
+
 ---  
   
 *Desenvolvido com ❤️ para o professor Walace.*

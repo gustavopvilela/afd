@@ -17,6 +17,7 @@ def print_menu ():
     print("10. Ver AFDs disponíveis")
     print("11. Visualizar AFD")
     print("12. Fazer cópia do AFD")
+    print("13. Validar cadeia de caracteres")
     print("0. Sair")
 
 def solicitar_um_automato (automatos: dict) -> str | None:
@@ -51,7 +52,6 @@ def solicitar_dois_automatos (automatos: dict) -> tuple[str, str] | None:
 def main():
     try:
         automatos: Dict[str, AFD] = {}
-        opcao: int = -1
 
         root = Tk()
         root.wm_attributes("-topmost", 1)
@@ -101,14 +101,11 @@ def main():
                     print("Autômato exportado com sucesso.")
 
                 case 3:
-                    if len(automatos) == 0:
-                        print("Nenhum autômato importado.")
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
                         continue
 
-                    nome = input("Digite o nome do autômato: ")
-                    if automatos.get(nome) is None:
-                        print("Autômato não existe")
-                        continue
+                    nome = res
 
                     """
                         Caso o autômato não possua nenhum estado equivalente, significa que ele já está minimizado.
@@ -234,6 +231,19 @@ def main():
                     novo_nome = f"{nome}-copia"
                     automatos[novo_nome] = afd
                     print(f"AFD copiado com sucesso. Está salvo com o nome \"{novo_nome}\".")
+
+                case 13:
+                    res = solicitar_um_automato(automatos)
+                    if res is None:
+                        continue
+
+                    nome = res
+
+                    cadeia = input("Digite a cadeia de caracteres a ser validada: ")
+
+                    resultado = AFD.validar(automatos[nome], cadeia)
+
+                    print(f"A cadeia de caracteres {cadeia} {'é aceita.' if resultado else 'não é aceita.'}")
 
                 case _:
                     print("Opção inválida!")

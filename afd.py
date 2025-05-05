@@ -61,10 +61,10 @@ class AFD:
 
         for simbolo in cadeia:
             estado_atual = self.transicoes.get((estado_atual, simbolo))
-            if estado_atual is None:
+            if estado_atual is None: # Não há transição
                 return False
 
-        return estado_atual in self.estados_finais
+        return estado_atual in self.estados_finais # Retorna se o estado está no conjunto de estados finais
 
     """
         Método para importar um arquivo JFLAP para o programa. Ele usa a biblioteca de leitura de XML
@@ -177,8 +177,9 @@ class AFD:
     """
     def completar (self):
         afd = AFD.copiar(self)
+        adicionou_erro = False
 
-        erro = 'E'
+        erro = 'ERRO'
         if erro not in afd.estados:
             afd.estados.add(erro)
 
@@ -186,9 +187,14 @@ class AFD:
             for simbolo in afd.alfabeto:
                 if (estado, simbolo) not in afd.transicoes:
                     afd.transicoes[(estado, simbolo)] = erro
+                    adicionou_erro = True
 
-        for simbolo in afd.alfabeto:
-            afd.transicoes[(erro, simbolo)] = erro
+        if adicionou_erro:
+            for simbolo in afd.alfabeto:
+                afd.transicoes[(erro, simbolo)] = erro
+
+        if not adicionou_erro:
+            afd.estados.remove(erro)
 
         return afd
 
@@ -198,6 +204,7 @@ class AFD:
     """
     def complemento (self):
         complemento = AFD.copiar(self)
+        complemento = AFD.completar(complemento)
 
         for e in complemento.estados:
             if e not in complemento.estados_finais:
@@ -226,8 +233,8 @@ class AFD:
         na operação que é passada por parâmetro e retornamos o novo AFD.
     """
     def produto (self, other):
-        afd1 = self
-        afd2 = other
+        afd1 = AFD.copiar(self)
+        afd2 = AFD.copiar(other)
 
         produto_estados = {}
         for estado_afd1 in afd1.estados:
@@ -258,8 +265,8 @@ class AFD:
         return produto_estados, nomes_estados, produto_alfabetos, produto_transicoes, produto_estado_inicial
 
     def intersecao (self, other):
-        afd1 = self
-        afd2 = other
+        afd1 = AFD.copiar(self)
+        afd2 = AFD.copiar(other)
 
         estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
 
@@ -277,8 +284,8 @@ class AFD:
         return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
     def diferenca(self, other):
-        afd1 = self
-        afd2 = other
+        afd1 = AFD.copiar(self)
+        afd2 = AFD.copiar(other)
         afd2 = afd2.complemento()
 
         estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
@@ -297,8 +304,8 @@ class AFD:
         return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
     def xor(self, other):
-        afd1 = self
-        afd2 = other
+        afd1 = AFD.copiar(self)
+        afd2 = AFD.copiar(other)
 
         estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
 
@@ -316,8 +323,8 @@ class AFD:
         return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
     def uniao(self, other):
-        afd1 = self
-        afd2 = other
+        afd1 = AFD.copiar(self)
+        afd2 = AFD.copiar(other)
 
         estados, nomes_estados, alfabeto, transicoes, estado_inicial = AFD.produto(afd1, afd2)
 
@@ -335,7 +342,8 @@ class AFD:
         return AFD(nomes_estados, alfabeto, transicoes, estado_inicial, produto_estados_finais)
 
     """
-        
+        Função para testar a equivalência de dois autômatos, mais detalhes de como ela funciona
+        estão nos comentários dentro da função.
     """
     def testar_equivalencia (self, other):
         # Copiando os AFDs para evitar interferências nos originais
@@ -391,6 +399,12 @@ class AFD:
         # Caso não for achado nenhum par de estados que satisfaça as condições de não equivalência, retornamos True
         return True
 
+    """
+        Função para encontrar os estados equivalentes dentro de um AFD. Utiliza o teorema de Myhill-Nerode,
+        basicamente, a forma de preenchimento da tabela. Esse mesmo código também é utilizado na função de 
+        minimização, uma vez que com ele é possível juntar os estados que fazem o mesmo serviço dentro do 
+        autômato.
+    """
     def estados_equivalentes(self):
         estados_alcancaveis = self.obter_estados_alcancaveis()
         nao_equivalentes = self.encontrar_estados_nao_equivalentes(estados_alcancaveis)
@@ -527,6 +541,12 @@ class AFD:
 
         return AFD(novos_estados, self.alfabeto, novas_transicoes, novo_estado_inicial, novos_estados_finais)
 
+    """
+        Função para a minimização de um AFD. Primeiro encontramos os estados alcançáveis a partir do estado
+        inicial, depois, achamos os estados que temos a certeza de que não são equivalentes. Assim, juntamos
+        os estados que são equivalentes em seus próprios grupos, sendo um dos estados o representante do grupo.
+        Por fim, montamos o AFD minimizado trocando cada estado pelo representante do grupo do qual faz parte.
+    """
     def minimizar (self):
         estados_alcancaveis = self.obter_estados_alcancaveis()
         nao_equivalentes = self.encontrar_estados_nao_equivalentes(estados_alcancaveis)
