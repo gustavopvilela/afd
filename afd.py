@@ -112,7 +112,7 @@ class AFD:
             transicoes[(from_estado, simbolo)] = to_estado
 
         # Caso o autômato importado não possua estado inicial ou ao menos um estado final, não o importamos.
-        if inicial is None or len(finais) == 0:
+        if inicial is None:
             return None
 
         return cls(estados, alfabeto, transicoes, inicial, finais)

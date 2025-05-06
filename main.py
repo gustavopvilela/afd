@@ -75,7 +75,7 @@ def main():
                     afd = AFD.importar_jflap(arquivo)
 
                     if afd is None:
-                        print("AFD importado não possui estado inicial ou não possui estados finais. Verifique e tente novamente.\n\n")
+                        print("AFD importado não possui estado inicial. Verifique e tente novamente.\n\n")
                         continue
 
                     nome = input(f"Digite o nome do autômato ({arquivo}): ")
