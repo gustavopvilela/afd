@@ -111,6 +111,10 @@ class AFD:
             alfabeto.add(simbolo)
             transicoes[(from_estado, simbolo)] = to_estado
 
+        # Caso o autômato importado não possua estado inicial ou ao menos um estado final, não o importamos.
+        if inicial is None or len(finais) == 0:
+            return None
+
         return cls(estados, alfabeto, transicoes, inicial, finais)
 
     """
@@ -233,8 +237,12 @@ class AFD:
         na operação que é passada por parâmetro e retornamos o novo AFD.
     """
     def produto (self, other):
+        # Precisamos completar os AFDs para garantir que todas as transições
+        # são cobertas no produto dos dois.
         afd1 = AFD.copiar(self)
+        afd1 = AFD.completar(afd1)
         afd2 = AFD.copiar(other)
+        afd2 = AFD.completar(afd2)
 
         produto_estados = {}
         for estado_afd1 in afd1.estados:
